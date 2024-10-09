@@ -63,7 +63,7 @@ def plot_dwell_times(data, name):
     sns.lineplot(calc_dwell_time(data["turn"],1), label="turn")
     plt.xlabel("Iterations")
     plt.ylabel("Dwell Time")
-    plt.savefig(name + "dwell_time.png")
+    plt.savefig(name + "_dwell_time.png")
     plt.clf()
 
 def integrate(states, df, time, dt, noise_mean = 0, noise_std = 0.01):
