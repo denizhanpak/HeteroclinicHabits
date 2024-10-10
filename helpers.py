@@ -80,15 +80,28 @@ def integrate(states, df, time, dt, noise_mean = 0, noise_std = 0.01):
             
     return pd.DataFrame(rv)
 
+def plot_phase_plane(data, name):
+    sns.scatterplot(x = data["forward"], y = data["reverse"])
+    plt.xlabel("Forward")
+    plt.ylabel("Reverse")
+    plt.savefig(name + "_phase_plane.png")
+    plt.clf()
 
-def VectorField(states):
-    dx = -(states["x"] ** 3) + states["x"]
-    dy = -(states["y"] ** 3) + states["y"] * 0.5
-    rv = {"x": dx, "y": dy}
-    if abs(dx) < 0.02: rv["x"] = 0
-    if abs(dy) < 0.02: rv["y"] = 0
-    return rv
+def plot_phase_plane_3d(data, name):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(data["forward"], data["reverse"], data["turn"])
+    ax.set_xlabel("Forward")
+    ax.set_ylabel("Reverse")
+    ax.set_zlabel("Turn")
+    plt.savefig(name + "_phase_plane_3d.png")
+    plt.clf()
 
-plot_time_series(integrate(
-    {"x": 1,"y": 0.2}, VectorField, 20, 0.01, 
-    noise_mean = 0, noise_std = 0.001), "integration_test")
+def run_simulation(name, states, df, time, dt, noise_mean = 0, noise_std = 0.01):
+    results = integrate(states, df, time, dt, noise_mean, noise_std)
+    plot_time_series(results, name)
+    plot_autocorrelation(results, name)
+    plot_dwell_times(results, name)
+    plot_phase_plane(results, name)
+    plot_phase_plane_3d(results, name)
+    return results
