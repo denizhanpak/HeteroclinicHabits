@@ -6,7 +6,7 @@ using NLsolve  # Use NonlinearSolve instead of NLsolve
 using LinearAlgebra  # Import norm function
 using PlotlyJS  # Import PlotlyJS for interactive plots
 
-name = "heteroclinic_network"
+name = "excitable_network"
 
 #mu = 1
 #a = 1.0

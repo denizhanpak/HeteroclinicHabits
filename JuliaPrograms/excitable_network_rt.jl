@@ -6,7 +6,7 @@ using NLsolve  # Use NonlinearSolve instead of NLsolve
 using LinearAlgebra  # Import norm function
 using PlotlyJS  # Import PlotlyJS for interactive plots
 
-name = "heteroclinic_network"
+name = "excitable_network"
 
 #mu = 1
 #a = 1.0
@@ -16,24 +16,24 @@ params = (1.0, 1.0, 1.1, 2)
 
 function jacobian!(J, u, p)
     mu, a, b, c = p
-    J[1, 1] = mu - 3 * a * u[1]^2 - b * u[2]^2 - c * u[3]^2
+    J[1, 1] = mu - 3 * a * u[1]^2 - b * u[2]^2 - b * u[3]^2
     J[1, 2] = -2 * b * u[1] * u[2]
-    J[1, 3] = -2 * c * u[1] * u[3]
+    J[1, 3] = -2 * b * u[1] * u[3]
 
     J[2, 1] = -2 * c * u[2] * u[1]
     J[2, 2] = mu - 3 * a * u[2]^2 - b * u[3]^2 - c * u[1]^2
     J[2, 3] = -2 * b * u[2] * u[3]
     
-    J[3, 1] = -2 * b * u[3] * u[1]
-    J[3, 2] = -2 * c * u[3] * u[2]
-    J[3, 3] = mu - 3 * a * u[3]^2 - b * u[1]^2 - c * u[2]^2
+    J[3, 1] = -2 * c * u[3] * u[1]
+    J[3, 2] = -2 * b * u[3] * u[2]
+    J[3, 3] = mu - 3 * a * u[3]^2 - c * u[1]^2 - b * u[2]^2
 end
 
 function vector_field!(du, u, p, t)
     mu, a, b, c = p
-    du[1] = mu * u[1] - u[1] * (a * u[1]^2 + b * u[2]^2 + c * u[3]^2)
+    du[1] = mu * u[1] - u[1] * (a * u[1]^2 + b * u[2]^2 + b * u[3]^2)
     du[2] = mu * u[2] - u[2] * (a * u[2]^2 + b * u[3]^2 + c * u[1]^2)
-    du[3] = mu * u[3] - u[3] * (a * u[3]^2 + b * u[1]^2 + c * u[2]^2)
+    du[3] = mu * u[3] - u[3] * (a * u[3]^2 + c * u[1]^2 + b * u[2]^2)
 end
 
 function neg_vector_field!(du, u, p, t)
@@ -151,9 +151,9 @@ function plot_phase_portrait(roots, solutions, limit_cycles, name, params)
     layout = Layout(
         title="Phase Portrait",
         scene=attr(
-            xaxis=attr(title="Forward", range=[-0.1, 1.1]),
-            yaxis=attr(title="Reverse", range=[-0.1, 1.1]),
-            zaxis=attr(title="Turn", range=[-0.1, 1.1])
+            xaxis=attr(title="Reverse", range=[-0.1, 1.1]),
+            yaxis=attr(title="Dorsal", range=[-0.1, 1.1]),
+            zaxis=attr(title="Ventral", range=[-0.1, 1.1])
         )
     )
     plot = Plot([scatter_data; trajectories...], layout)
@@ -215,7 +215,7 @@ function make_hypersphere(r=0.5, d=3, n=10,o=nothing)
 end
 
 # Run the simulation and generate plots with more initial conditions
-initial_conditions = make_hypersphere(0.1, 3, 10, [0.5, 0.5, 0.5])
+initial_conditions = make_hypersphere(0.1, 3, 20, [0.2, 0.65, 0.65])
 tspan = (0.0, 1000.0)
 solutions = run_simulation(name, initial_conditions, tspan, params)
 
