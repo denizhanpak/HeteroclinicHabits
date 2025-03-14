@@ -27,3 +27,4 @@ Manifest.toml
 *.json
 *.pyc
 *./.*
+*.gif

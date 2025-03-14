@@ -7,32 +7,31 @@ using LinearAlgebra  # Import norm function
 using PlotlyJS  # Import PlotlyJS for interactive plots
 
 function jacobian!(J, u, p)
-    mu, a, b, c = p
-    J[1, 1] = mu - 3 * a * u[1]^2 - b * u[2]^2 - c * u[3]^2
-    J[1, 2] = -2 * b * u[1] * u[2]
-    J[1, 3] = -2 * c * u[1] * u[3]
+    _, e, i = p
+    J[1, 1] = 2 * u[1]
+    J[1, 2] = e
+    J[1, 3] = i
 
-    J[2, 1] = -2 * c * u[2] * u[1]
-    J[2, 2] = mu - 3 * a * u[2]^2 - b * u[3]^2 - c * u[1]^2
-    J[2, 3] = -2 * b * u[2] * u[3]
+    J[2, 1] = i
+    J[2, 2] = 2 * u[2]
+    J[2, 3] = e
     
-    J[3, 1] = -2 * b * u[3] * u[1]
-    J[3, 2] = -2 * c * u[3] * u[2]
-    J[3, 3] = mu - 3 * a * u[3]^2 - b * u[1]^2 - c * u[2]^2
+    J[3, 1] = e
+    J[3, 2] = i
+    J[3, 3] = 2 * u[3]
 end
 
 function vector_field!(du, u, p, t)
-    mu, a, b, c, sigma = p
-    du[1] = mu * u[1] - u[1] * (a * u[1]^2 + b * u[2]^2 + c * u[3]^2)
-    du[2] = mu * u[2] - u[2] * (a * u[2]^2 + b * u[3]^2 + c * u[1]^2)
-    du[3] = mu * u[3] - u[3] * (a * u[3]^2 + b * u[1]^2 + c * u[2]^2)
+    r, e, i = p
+    du[1] = u[1] * u[1] + r + e * u[2] + i * u[3]
+    du[2] = u[2] * u[2] + r + e * u[3] + i * u[1]
+    du[3] = u[3] * u[3] + r + e * u[1] + i * u[2]
 end
 
 function noise_term!(du, u, p, t)
-    mu, a, b, c, sigma = p
-    du[1] = sigma
-    du[2] = sigma
-    du[3] = sigma
+    du[1] = 0
+    du[2] = 0
+    du[3] = 0
 end
 
 function find_roots(u0, params)
@@ -42,8 +41,8 @@ function find_roots(u0, params)
     function j!(J, x)
         jacobian!(J, x, params)
     end
-    result = nlsolve(f!, j!, u0)
-    #result = nlsolve(f!,  u0)
+    #result = nlsolve(f!, j!, u0)
+    result = nlsolve(f!,  u0)
     return result.zero
 end
 
@@ -60,7 +59,7 @@ function classify_stability(root, params)
     end
 end
 
-function grid_search_roots(grid_points, params, threshold=1e-6)
+function grid_search_roots(grid_points, params, threshold=1e-4)
     function remove_duplicate_roots(roots, threshold=1e-3)
         unique_roots = []
         for root in roots
@@ -77,7 +76,7 @@ function grid_search_roots(grid_points, params, threshold=1e-6)
             for z in grid_points
                 u0 = [x, y, z]
                 root = find_roots(u0, params)
-                if all(isfinite, root)
+                if all(isfinite, root) && root[1] >= -0.01 && root[2] >= -0.01 && root[3] >= -0.01
                     push!(roots, root)
                 end
             end
@@ -119,6 +118,7 @@ function plot_phase_portrait(roots, solutions, limit_cycles, name, params)
     trajectories = []
     for root in roots
         stability, eigenvalues = classify_stability(root, params)
+        println("Root: $root", " Stability: $stability")
         if stability == :stable
             push!(colors, "blue")
             #append!(trajectories, plot_saddles(root, params))
@@ -126,12 +126,12 @@ function plot_phase_portrait(roots, solutions, limit_cycles, name, params)
             push!(colors, "red")
             #append!(trajectories, plot_saddles(root, params))
         elseif stability == :center
-            push!(colors, "yellow")
+            #push!(colors, "yellow")
         elseif stability == :degenerate
-            push!(colors, "purple")
+            #push!(colors, "purple")
         else
             push!(colors, "green")
-            append!(trajectories, plot_saddles(root, params))
+            #append!(trajectories, plot_saddles(root, params))
         end
         push!(hovertexts, "Eigenvalues: " * string(eigenvalues))
     end
@@ -208,6 +208,62 @@ function make_hypersphere(r=0.5, d=3, n=10,o=nothing)
     return points
 end
 
+function get_resting_place(ic, params,time=80.0)
+    ode = ODEProblem(vector_field!, ic, (0.0, time), params)
+    sol = solve(ode, Tsit5(), saveat=0.01)
+    final = sol.u[end]
+    stability, _ = classify_stability(final, params)
+    if stability == :stable
+        return final
+    else
+        println("Root is not stable", final, ic)
+        return nothing
+    end
+    return resting_places
+end
+
+function receptivitiy_plot(start, params, max_perturbation=1.1, num_points=100)
+    perturbations = range(0.1, stop=max_perturbation, length=num_points)
+    maxima = []
+    ics = []
+    dt = (pi/2 + 0.1) / 50
+    for i in (-pi/2):dt:(pi/2 + 0.1)
+        pushed = false
+        for perturbation in perturbations
+            pert = normalize([0, cos(i), sin(i)]) * perturbation
+            u0 = start .+ pert
+            push!(ics, u0)
+            root = get_resting_place(u0, params)
+            if root !== nothing 
+                if (norm(root - start) > 0.1) && !pushed
+                    push!(maxima, [i, perturbation])
+                    pushed = true
+                end
+            end
+        end
+        if !pushed
+            push!(maxima, (i, 0))
+        end
+    end
+
+    # Plot the maxima
+    angles = []
+    perturbations = []
+    foreach(maxima) do pair
+        push!(angles, pair[1])
+        if pair[2] == 0
+            push!(perturbations, 0)
+        else
+            push!(perturbations, 1/pair[2])
+        end
+    end
+
+    println("Maxima: $maxima")
+    Plots.scatter(angles, perturbations, xlabel="Angle (radians)", ylabel="Perturbation", title="Receptivity Plot")
+    Plots.savefig("receptivity_plot.png")
+    return maxima, ics
+end
+
 name = "excitable_network"
 
 #mu = 1
@@ -215,33 +271,39 @@ name = "excitable_network"
 #b = 0.55
 #c = 1.5
 #sigma = 0.01
-params = (1.0, 1.0, 0.55, 1.5, 0.001)
+params = (1., 1., 1.)
+
+#maxima, ics = receptivitiy_plot([1, 0.0, 0.0], params)
+#exit()
+
 
 # Run the simulation and generate plots with more initial conditions
-initial_conditions = make_hypersphere(0.1, 3, 10, [0.5, 0.5, 0.5])
-tspan = (0.0, 500.0)
+initial_conditions = make_hypersphere(0.1, 3, 40, [.9, 0.2, 0.0])
+tspan = (0.0, 200.0)
 solutions = run_simulation(name, initial_conditions, tspan, params)
 
 # Generate roots from a grid search
-grid_points = range(-1.0, stop=1.0, length=10)
+grid_points = range(-.2, stop=1.1, length=15)
 roots = grid_search_roots(grid_points, params)
-#println("Unique roots found: $roots")
+
 
 # Find limit cycles
-limit_cycles = []
-limit_cycle_ics = [[-0.5290695,0.6016491, 0.8298353]]
-for u0 in limit_cycle_ics
-    cycle, _ = find_limit_cycle(vector_field!, u0, 30.0)
-    if !isempty(cycle)
-        push!(limit_cycles, cycle)
-    end
-end
+#limit_cycles = []
+#limit_cycle_ics = []
+#for u0 in limit_cycle_ics
+#    cycle, _ = find_limit_cycle(vector_field!, u0, 30.0)
+#    if !isempty(cycle)
+#        push!(limit_cycles, cycle)
+#    end
+#end
 #println("Limit cycles found: $limit_cycles")
 
 # Plot limit cycle separately
-if !isempty(limit_cycles)
-    plot_limit_cycle(limit_cycles[1], name)
-end
+#if !isempty(limit_cycles)
+#    plot_limit_cycle(limit_cycles[1], name)
+#end
 
 # Plot phase portrait with trajectories and limit cycles
-plot_phase_portrait([], solutions, [], name, params)
+#solutions = []
+limit_cycles = []
+plot_phase_portrait(roots, solutions, limit_cycles, name, params)

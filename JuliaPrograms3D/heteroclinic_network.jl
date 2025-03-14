@@ -12,7 +12,7 @@ name = "heteroclinic_network"
 #a = 1.0
 #b = 0.55
 #c = 1.5
-params = (1.0, 1.0, 1.1, 2)
+params = (1.0, 1.0, .7, 2)
 
 function jacobian!(J, u, p)
     mu, a, b, c = p
@@ -53,6 +53,13 @@ function find_roots(u0, params)
     return result.zero
 end
 
+function get_saddle_value(eigenvalues)
+    max_positive = maximum(real(eigenvalues))
+    neg_eigenvalues = [eigenvalue for eigenvalue in eigenvalues if real(eigenvalue) < 0]
+    min_negative = (maximum(real(neg_eigenvalues)))
+    return -min_negative/max_positive
+end
+
 function classify_stability(root, params)
     J = zeros(3, 3)
     jacobian!(J, root, params)
@@ -61,6 +68,8 @@ function classify_stability(root, params)
         return :stable, eigenvalues
     elseif all(real.(eigenvalues) .> 0)
         return :unstable, eigenvalues
+    elseif get_saddle_value(eigenvalues) > 1.1 && get_saddle_value(eigenvalues) < 5
+        return :dissapative, eigenvalues
     else
         return :saddle, eigenvalues
     end
@@ -109,11 +118,11 @@ function plot_saddles(root, params)
         if real(eigenvalue) > 0
             prob = ODEProblem(vector_field!, u0, (0.0, time), params)
             sol = solve(prob, Tsit5(), saveat=0.01)  # Increased sampling resolution
-            push!(trajectories, PlotlyJS.scatter3d(x=sol[1, :], y=sol[2, :], z=sol[3, :], mode="lines", line=attr(color="red", width=0.6), name="unstable"))
+            push!(trajectories, PlotlyJS.scatter3d(x=sol[1, :], y=sol[2, :], z=sol[3, :], mode="lines", line=attr(color="black", width=1.2), name="unstable"))
         elseif real(eigenvalue) < 0
             prob = ODEProblem(vector_field!, u0, (0.0, -time), params)
             sol = solve(prob, Tsit5(), saveat=0.01)  # Increased sampling resolution
-            push!(trajectories, PlotlyJS.scatter3d(x=sol[1, :], y=sol[2, :], z=sol[3, :], mode="lines", line=attr(color="blue", width=0.6), name="stable"))
+            push!(trajectories, PlotlyJS.scatter3d(x=sol[1, :], y=sol[2, :], z=sol[3, :], mode="lines", line=attr(color="black", width=1.2), name="stable"))
         end
     end
     return trajectories
@@ -135,9 +144,12 @@ function plot_phase_portrait(roots, solutions, limit_cycles, name, params)
             push!(colors, "yellow")
         elseif stability == :degenerate
             push!(colors, "purple")
+        elseif stability == :dissapative
+            push!(colors, "cyan")
+            append!(trajectories, plot_saddles(root, params))
         else
             push!(colors, "green")
-            append!(trajectories, plot_saddles(root, params))
+            #append!(trajectories, plot_saddles(root, params))
         end
         push!(hovertexts, "Eigenvalues: " * string(eigenvalues))
     end
@@ -169,6 +181,52 @@ function run_simulation(name, initial_conditions, tspan, params)
         push!(solutions, sol)
     end
     return solutions
+end
+
+function plot_heteroclinic_channel(source, sink, params, r=0.1, n=10)
+    max_dim_source = argmax(abs.(source))
+    max_dim_sink = argmax(abs.(sink))
+    
+    y_index = max_dim_source
+    x_index = max_dim_sink
+    
+    Plots.plot(title="Heteroclinic Channel", xlabel="Dimension $x_index", ylabel="Dimension $y_index", seriestype=:scatter, markersize=2, xlims=(-0.1, 1.1), ylims=(-0.1, 1.1), legend=false)
+
+    initial_conditions = make_hypersphere(r, 3, n, [1,0,0])
+    tspan = (0.0, 1000.0)
+    
+    for u0 in initial_conditions
+        prob = ODEProblem(vector_field!, u0, tspan, params)
+        sol = solve(prob, Tsit5(), saveat=0.005)
+        
+        # Split solutions at points below the diagonal connecting the 0.5 tick marks on both axes
+        split_indices = []#findall(sol[x_index, :] .+ sol[y_index, :] .<= 1)
+        if !isempty(split_indices)
+            start_idx = 1
+            for idx in split_indices
+                if idx > start_idx
+                    Plots.plot!(sol[x_index, start_idx:idx-1], sol[y_index, start_idx:idx-1], linewidth=1.2)
+                end
+                start_idx = idx + 1
+            end
+            if start_idx <= length(sol[x_index, :])
+                Plots.plot!(sol[x_index, start_idx:end], sol[y_index, start_idx:end], linewidth=1.2)
+            end
+        else
+            Plots.plot!(sol[x_index, :], sol[y_index, :], linewidth=1.2)
+        end
+    end
+    
+    Plots.scatter!([source[x_index]], [source[y_index]], color="red", markersize=5)
+    Plots.scatter!([sink[x_index]], [sink[y_index]], color="blue", markersize=5)
+    
+    # Add a thick black line based on the specific initial condition [0.999, 0.0001, 0.0001]
+    line_ic = [0.00001, 0.9999, 0.0001]
+    line_prob = ODEProblem(vector_field!, line_ic, 100, params)
+    line_sol = solve(line_prob, Tsit5(), saveat=0.01)
+    Plots.plot!(line_sol[y_index, :], line_sol[x_index, :], linewidth=3, arrow=:arrow, color="black")
+    
+    Plots.savefig("heteroclinic_channel.png")
 end
 
 function find_limit_cycle(f, x, t, tol=5e-4)
@@ -214,13 +272,19 @@ function make_hypersphere(r=0.5, d=3, n=10,o=nothing)
     return points
 end
 
+# Example usage of plot_heteroclinic_channel
+source = [1, 0, 0]
+sink = [0, 1, 0]
+plot_heteroclinic_channel(source, sink, params, 0.1, 20)
+exit()
+
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = make_hypersphere(0.1, 3, 10, [0.5, 0.5, 0.5])
 tspan = (0.0, 1000.0)
 solutions = run_simulation(name, initial_conditions, tspan, params)
 
 # Generate roots from a grid search
-grid_points = range(-1.0, stop=1.0, length=10)
+grid_points = range(0, stop=1.0, length=10)
 roots = grid_search_roots(grid_points, params)
 #println("Unique roots found: $roots")
 

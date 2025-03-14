@@ -8,6 +8,12 @@ using PlotlyJS  # Import PlotlyJS for interactive plots
 
 name = "oscillator_network"
 
+function approx_less_than(a, b, tol=1e-6)
+    return a < (b + tol)
+end
+
+
+
 #ws = 1.0
 #wi = -0.68
 #we = 0.23
@@ -57,6 +63,7 @@ function find_roots(u0, params)
         jacobian!(J, x, params)
     end
     result = nlsolve(f!, j!, u0)
+    result = nlsolve(f!, u0)
     return result.zero
 end
 
@@ -65,14 +72,14 @@ function classify_stability(root, params)
     jacobian!(J, root, params)
     eigenvalues, eigenvectors = eigen(J)
 
-    if all(real.(eigenvalues) .< 0)
+    if any(abs.(real.(eigenvalues)) .< 1e-7)
+        return :center, eigenvalues
+    elseif all(real.(eigenvalues) .< 0)
         return :stable, eigenvalues
     elseif all(real.(eigenvalues) .> 0)
         return :unstable, eigenvalues
-    elseif any(abs.(real.(eigenvalues)) .< 1e-7)
-        return :center, eigenvalues
-    elseif det(real.(eigenvectors)) ≈ 0
-        return :degenerate, eigenvalues
+    #elseif det(real.(eigenvectors)) ≈ 0
+    #    return :degenerate, eigenvalues
     else
         return :saddle, eigenvalues
     end
@@ -149,7 +156,7 @@ function plot_phase_portrait(roots, solutions, limit_cycles, name, params)
             push!(colors, "purple")
         else
             push!(colors, "green")
-            append!(trajectories, plot_saddles(root, params))
+            #append!(trajectories, plot_saddles(root, params))
         end
         push!(hovertexts, "Eigenvalues: " * string(eigenvalues))
     end
@@ -163,9 +170,9 @@ function plot_phase_portrait(roots, solutions, limit_cycles, name, params)
     layout = Layout(
         title="Phase Portrait",
         scene=attr(
-            xaxis=attr(title="Forward", range=[-0.1, 1.1]),
-            yaxis=attr(title="Reverse", range=[-0.1, 1.1]),
-            zaxis=attr(title="Turn", range=[-0.1, 1.1])
+            xaxis=attr(title="Forward", range=[-1.1, 1.1]),
+            yaxis=attr(title="Reverse", range=[-1.1, 1.1]),
+            zaxis=attr(title="Turn", range=[-1.1, 1.1])
         )
     )
     plot = Plot([scatter_data; trajectories...], layout)
@@ -228,16 +235,127 @@ function make_hypersphere(r=0.5, d=3, n=10,o=nothing)
     return points
 end
 
+function filter_solution(sol, x_index, y_index, x_threshold=0.8, y_threshold=0.9)
+    indices = findall(sol[x_index, :] .> x_threshold)
+    if !isempty(indices)
+        start_idx = indices[1]
+        end_idx = findfirst(sol[y_index, start_idx:end] .> y_threshold)
+        if end_idx !== nothing
+            end_idx += start_idx - 1
+            return sol[:, start_idx:end_idx]
+        else
+            return sol[:, start_idx:end]
+        end
+    end
+    return nothing
+end
+
+function plot_oscillator_acceleration(path, dt)
+    path = path[1:3, :]
+    velocities = diff(path, dims=2) ./ dt
+    accelerations = diff(velocities, dims=2) ./ dt
+    Plots.plot(title="Oscillator Acceleration", xlabel="X", ylabel="Y", zlabel="Z", seriestype=:scatter, markersize=2, legend=false)
+    Plots.plot!(accelerations[1, :], accelerations[2, :], accelerations[3, :], linewidth=1.2)
+    Plots.savefig("oscillator_acceleration.png")
+end
+
+function plot_oscillator_force_field(path, dt, quiver_frequency=20)
+    path = path[1:2, :]
+    velocities = diff(path, dims=2) ./ dt
+    accelerations = diff(velocities, dims=2) ./ dt
+
+    orthogonal_path = []
+    for point in eachcol(path)
+        orthogonal_point = [point[2], -point[1]]
+        push!(orthogonal_path, orthogonal_point)
+    end
+
+    forces = []
+    for point in zip(eachcol(accelerations), orthogonal_path)
+        force_point = dot(point[1], point[2])
+        push!(forces, force_point)
+    end
+    max = maximum(abs.(forces))
+    forces_normalized = (forces)./max * 0.05
+
+    # Plot horizontal line
+    x_values = 0:dt:(dt * (length(forces)))
+    y_values = zeros(length(x_values)) .+ 0.05
+    Plots.plot(x_values, zeros(length(x_values)), color="black", linewidth=1.2)
+
+    # Plot quiver every quiver_frequency points
+    quiver_indices = 1:quiver_frequency:length(x_values)
+    for i in quiver_indices
+        mag = forces_normalized[i] + 0.01
+        quiver!([x_values[i]], [y_values[i]], quiver=mag, linewidth=0.3, color="red")
+        quiver!([x_values[i]], -[y_values[i]], quiver=-mag, linewidth=0.3, color="red")
+    end
+
+    Plots.title!("Oscillator Force Field")
+    Plots.xlabel!("Time")
+    Plots.ylabel!("Force")
+    Plots.savefig("oscillator_force_field.png")
+end
+
+function plot_oscillator_channel(source, sink, params, r=0.2, n=20, dt=0.001)
+    max_dim_source = argmax(abs.(source))
+    max_dim_sink = argmax(abs.(sink))
+    
+    y_index = max_dim_source
+    x_index = max_dim_sink
+    
+    Plots.plot(title="Oscillator Channel", xlabel="Dimension $x_index", ylabel="Dimension $y_index", seriestype=:scatter, markersize=2, xlims=(-0.1, 1.1), ylims=(-0.1, 1.1), legend=false)
+
+    initial_conditions = make_hypersphere(r, 3, n, [1,0.01,0.01])
+    tspan = (0.0, 20.0)
+    
+    for u0 in initial_conditions
+        prob = ODEProblem(vector_field!, u0, tspan, params)
+        sol = solve(prob, Tsit5(), reltol=1e-7, abstol=1e-7, saveat=dt)
+        Plots.plot!(sol[y_index, :], sol[x_index, :], linewidth=1.2)
+        
+        #filtered_sol = filter_solution(sol, x_index, y_index, 0.2, 0.2)
+        #if filtered_sol !== nothing
+        #    Plots.plot!(filtered_sol[y_index, :], filtered_sol[x_index, :], linewidth=1.2)
+        #end
+    end
+    
+    Plots.scatter!([source[x_index]], [source[y_index]], color="red", markersize=5)
+    Plots.scatter!([sink[x_index]], [sink[y_index]], color="blue", markersize=5)
+    
+    # Add a thick black line based on the specific initial condition [0.999, 0.0001, 0.0001]
+    line_ic = [0.9999, 0.001, 0.0001]
+    line_prob = ODEProblem(vector_field!, line_ic, 7.55, params)
+    line_sol = solve(line_prob, Tsit5(), reltol=1e-7, abstol=1e-7, saveat=dt)
+    
+    Plots.plot!(line_sol[y_index, :], line_sol[x_index, :], linewidth=10, arrow=:arrow, color="black", la=0.2)
+    filtered_line_sol = filter_solution(line_sol, x_index, y_index, .01, .95)
+    if filtered_line_sol !== nothing
+        Plots.plot!(filtered_line_sol[y_index, :], filtered_line_sol[x_index, :], linewidth=10, arrow=:arrow, color="black", la=0.2)
+    end
+    #println(size(line_sol))
+    #Plots.plot!(line_sol[y_index, :], line_sol[x_index, :], linewidth=10, arrow=:arrow, color="black", la=0.2)
+    
+    Plots.savefig("oscillator_channel.png")
+    return line_sol
+end
+
+line = plot_oscillator_channel([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], params)
+plot_oscillator_force_field(line, 0.001, 250)
+exit()
+
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = [[-0.5290695,0.6016491, 0.8298354],[-0.6454127, 0.979755, 0.2632572]]
-initial_conditions = make_hypersphere(0.1, 3, 10, [0.5, 0.5, 0.5])
-tspan = (0.0, 200.0)
+initial_conditions = make_hypersphere(1, 3, 10, [0.5, 0.5, 0.5])
+tspan = (0.0, 500.0)
 solutions = run_simulation(name, initial_conditions, tspan, params)
 #solutions = []
 
+
+
 # Generate roots from a grid search
 grid_points = range(-.8, stop=.8, length=10)
-roots = grid_search_roots(grid_points, params)
+#roots = grid_search_roots(grid_points, params)
 
 # Find limit cycles
 limit_cycles = []
@@ -256,4 +374,4 @@ end
 
 # Plot phase portrait with trajectories and limit cycles
 #plot_phase_portrait(roots, solutions, limit_cycles, name, params)
-plot_phase_portrait(roots, solutions, limit_cycles, name, params)
+p = plot_phase_portrait(roots, [], [], name, params)

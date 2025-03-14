@@ -5,6 +5,7 @@ using StatsBase
 using NLsolve  # Use NonlinearSolve instead of NLsolve
 using LinearAlgebra  # Import norm function
 using PlotlyJS  # Import PlotlyJS for interactive plots
+f
 
 name = "excitable_network"
 
@@ -12,7 +13,7 @@ name = "excitable_network"
 #a = 1.0
 #b = 0.55
 #c = 1.5
-params = (1.0, 1.0, 1.1, 2)
+params = (1.0, 1.0, 2, 2)
 
 function jacobian!(J, u, p)
     mu, a, b, c = p
@@ -31,9 +32,9 @@ end
 
 function vector_field!(du, u, p, t)
     mu, a, b, c = p
-    du[1] = mu * u[1] - u[1] * (a * u[1]^2 + b * u[2]^2 + b * u[3]^2)
+    du[1] = mu * u[1] - u[1] * (a * u[1]^2 + b * u[2]^2 + c * u[3]^2)
     du[2] = mu * u[2] - u[2] * (a * u[2]^2 + b * u[3]^2 + c * u[1]^2)
-    du[3] = mu * u[3] - u[3] * (a * u[3]^2 + c * u[1]^2 + b * u[2]^2)
+    du[3] = mu * u[3] - u[3] * (a * u[3]^2 + b * u[1]^2 + c * u[2]^2)
 end
 
 function neg_vector_field!(du, u, p, t)
@@ -48,8 +49,8 @@ function find_roots(u0, params)
     function j!(J, x)
         jacobian!(J, x, params)
     end
-    result = nlsolve(f!, j!, u0)
-    #result = nlsolve(f!,  u0)
+    #result = nlsolve(f!, j!, u0)
+    result = nlsolve(f!,  u0)
     return result.zero
 end
 
@@ -161,7 +162,7 @@ function plot_phase_portrait(roots, solutions, limit_cycles, name, params)
     display(plot)
 end
 
-function run_simulation(name, initial_conditions, tspan, params)
+function run_simulation(initial_conditions, tspan, params)
     solutions = []
     for u0 in initial_conditions
         prob = ODEProblem(vector_field!, u0, tspan, params)
@@ -196,7 +197,7 @@ function plot_limit_cycle(cycle, name)
 end
 
 function make_hypersphere(r=0.5, d=3, n=10,o=nothing)
-    if o == nothing
+    if o === nothing
         o = zeros(d)
     end
     if length(o) != d
@@ -215,14 +216,14 @@ function make_hypersphere(r=0.5, d=3, n=10,o=nothing)
 end
 
 # Run the simulation and generate plots with more initial conditions
-initial_conditions = make_hypersphere(0.1, 3, 20, [0.2, 0.65, 0.65])
+initial_conditions = make_hypersphere(0.1, 3, 1, [0.55, 0.55, 0.55])
 tspan = (0.0, 1000.0)
-solutions = run_simulation(name, initial_conditions, tspan, params)
+solutions = run_simulation(initial_conditions, tspan, params)
 
 # Generate roots from a grid search
 grid_points = range(-1.0, stop=1.0, length=10)
 roots = grid_search_roots(grid_points, params)
-#println("Unique roots found: $roots")
+println("Unique roots found: $roots")
 
 # Find limit cycles
 limit_cycles = []
@@ -241,4 +242,4 @@ if !isempty(limit_cycles)
 end
 
 # Plot phase portrait with trajectories and limit cycles
-plot_phase_portrait(roots, solutions, [], name, params)
+plot_phase_portrait([], solutions, [], name, params)

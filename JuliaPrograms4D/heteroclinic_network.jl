@@ -7,38 +7,70 @@ using LinearAlgebra  # Import norm function
 using PlotlyJS  # Import PlotlyJS for interactive plots
 
 function jacobian!(J, u, p)
-    mu, a, b, c, d, sigma = p
-    J[1, 1] = mu - 3 * a * u[1]^2 - b * u[2]^2 - c * u[3]^2 - c * u[4]^2
-    J[1, 2] = -2 * b * u[1] * u[2]
-    J[1, 3] = -2 * c * u[1] * u[3]
-    J[1, 4] = -2 * c * u[1] * u[4]
-
-    J[2, 1] = -2 * c * u[2] * u[1]
-    J[2, 2] = mu - 3 * a * u[2]^2 - b * u[3]^2 - b * u[4]^2 - c * u[1]^2
-    J[2, 3] = -2 * b * u[2] * u[3]
-    J[2, 4] = -2 * b * u[2] * u[4]
+    ws, wi, we, delta, epsilon = p
+    sp = sigmoid_prime.(u, delta, epsilon)
     
-    J[3, 1] = -2 * b * u[3] * u[1]
-    J[3, 2] = -2 * c * u[3] * u[2]
-    J[3, 3] = mu - 3 * a * u[3]^2 - b * u[1]^2 - c * u[2]^2 - d * u[4]^2
-    J[3, 4] = -2 * d * u[3] * u[4]
+    J[1, 1] = -1 + ws * sp[1]
+    J[1, 2] = wi * sp[2]
+    J[1, 3] = we * sp[3]
+    J[1, 4] = we * sp[4]
 
-    J[4, 1] = -2 * b * u[4] * u[1]
-    J[4, 2] = -2 * c * u[4] * u[2]
-    J[4, 3] = -2 * d * u[4] * u[3]
-    J[4, 4] = mu - 3 * a * u[4]^2 - b * u[1]^2 - c * u[2]^2 - d * u[3]^2
+    J[2, 1] = we * sp[1]
+    J[2, 2] = -1 + ws * sp[2]
+    J[2, 3] = wi * sp[3]
+    J[2, 4] = wi * sp[4]
+
+    J[3, 1] = wi * sp[1]
+    J[3, 2] = we * sp[2]
+    J[3, 3] = -1 + ws * sp[3]
+    J[3, 4] = wi * sp[4]
+
+    J[4, 1] = wi * sp[1]
+    J[4, 2] = wi * sp[2]
+    J[4, 3] = we * sp[3]
+    J[4, 4] = -1 + ws * sp[4]
 end
 
 function vector_field!(du, u, p, t)
-    mu, a, b, c, d, sigma = p
-    du[1] = mu * u[1] - u[1] * (a * u[1]^2 + b * u[2]^2 + c * u[3]^2 + c * u[4]^2)
-    du[2] = mu * u[2] - u[2] * (a * u[2]^2 + b * u[3]^2 + b * u[4]^2 + c * u[1]^2)
-    du[3] = mu * u[3] - u[3] * (a * u[3]^2 + b * u[1]^2 + c * u[2]^2 + d * u[4]^2)
-    du[4] = mu * u[4] - u[4] * (a * u[4]^2 + b * u[1]^2 + c * u[2]^2 + d * u[3]^2)
+    ws, wi, we, delta, epsilon = p
+    du[1] = -u[1] + ws * sigmoid(u[1], delta, epsilon) + wi * sigmoid(u[2], delta, epsilon) + we * sigmoid(u[3], delta, epsilon) + we * sigmoid(u[4], delta, epsilon)
+    du[2] = -u[2] + ws * sigmoid(u[2], delta, epsilon) + wi * sigmoid(u[3], delta, epsilon) + we * sigmoid(u[1], delta, epsilon) + wi * sigmoid(u[4], delta, epsilon) 
+    du[3] = -u[3] + ws * sigmoid(u[3], delta, epsilon) + wi * sigmoid(u[1], delta, epsilon) + we * sigmoid(u[2], delta, epsilon) + wi * sigmoid(u[4], delta, epsilon)
+    du[4] = -u[4] + ws * sigmoid(u[4], delta, epsilon) + wi * sigmoid(u[1], delta, epsilon) + we * sigmoid(u[2], delta, epsilon) + wi * sigmoid(u[3], delta, epsilon)
+end
+function jacobian!(J, u, p)
+    mu, a, b, c, sigma = p
+    J[1, 1] = mu + 3 * a * u[1]^2 + b * u[2]^2 + c * u[3]^2 + c * u[4]^2
+    J[1, 2] = 2 * b * u[1] * u[2]
+    J[1, 3] = 2 * c * u[1] * u[3]
+    J[1, 4] = 2 * c * u[1] * u[4]
+
+    J[2, 1] = 2 * c * u[2] * u[1]
+    J[2, 2] = mu + 3 * a * u[2]^2 + b * u[3]^2 + c * u[1]^2 + b * u[4]^2
+    J[2, 3] = 2 * b * u[2] * u[3]
+    J[2, 4] = 2 * b * u[2] * u[4]
+
+    J[3, 1] = 2 * c * u[3] * u[1]
+    J[3, 2] = 2 * b * u[3] * u[2]
+    J[3, 3] = mu + 3 * a * u[3]^2 + b * u[1]^2 + c * u[2]^2 + b * u[4]^2
+    J[3, 4] = 2 * b * u[3] * u[4]
+
+    J[4, 1] = 2 * c * u[4] * u[1]
+    J[4, 2] = 2 * b * u[4] * u[2]
+    J[4, 3] = 2 * b * u[4] * u[3]
+    J[4, 4] = mu + 3 * a * u[4]^2 + b * u[1]^2 + c * u[2]^2 + b * u[3]^2
+end
+
+function vector_field!(du, u, p, t)
+    mu, a, b, c, sigma = p
+    du[1] = u[1] * (mu + a * u[1]^2 + b * u[2]^2 + c * u[3]^2 + c * u[4]^2)
+    du[2] = u[2] * (mu + a * u[2]^2 + b * u[3]^2 + c * u[1]^2 + b * u[4]^2)
+    du[3] = u[3] * (mu + a * u[3]^2 + b * u[1]^2 + c * u[2]^2 + b * u[4]^2)
+    du[4] = u[4] * (mu + a * u[4]^2 + b * u[1]^2 + c * u[2]^2 + b * u[3]^2)
 end
 
 function noise_term!(du, u, p, t)
-    mu, a, b, c, d, sigma = p
+    mu, a, b, c, sigma = p
     du[1] = sigma
     du[2] = sigma
     du[3] = sigma
@@ -52,8 +84,8 @@ function find_roots(u0, params)
     function j!(J, x)
         jacobian!(J, x, params)
     end
-    result = nlsolve(f!, j!, u0)
-    #result = nlsolve(f!,  u0)
+    #result = nlsolve(f!, j!, u0)
+    result = nlsolve(f!,  u0)
     return result.zero
 end
 
@@ -103,13 +135,13 @@ function plot_saddles(root, params, dims)
     J = zeros(4, 4)
     jacobian!(J, root, params)
     eigenvalues, eigenvectors = eigen(J)
-    offset = 0.005
+    offset = 0.01
     trajectories = []
     for i in 1:length(eigenvalues)
         eigenvalue = real.(eigenvalues[i])
         eigenvector = real.(eigenvectors[:, i])
         time = 50
-        u0 = root .+ offset * abs.(eigenvector)
+        u0 = root .+ offset * (eigenvector)
         # Add a point at u0 for debugging
         #push!(trajectories, PlotlyJS.scatter3d(x=[u0[1]], y=[u0[2]], z=[u0[3]], mode="markers", marker=attr(size=5, color="black"), name="u0"))
         if real(eigenvalue) > 0
@@ -143,7 +175,7 @@ function plot_phase_portrait(roots, solutions, limit_cycles, name, params, dims)
             push!(colors, "purple")
         else
             push!(colors, "green")
-            append!(trajectories, plot_saddles(root, params, dims))
+            #append!(trajectories, plot_saddles(root, params, dims))
         end
         push!(hovertexts, "Eigenvalues: " * string(eigenvalues))
     end
@@ -172,7 +204,8 @@ end
 function run_simulation(name, initial_conditions, tspan, params)
     solutions = []
     for u0 in initial_conditions
-        prob = SDEProblem(vector_field!, noise_term!,u0, tspan, params)
+        #prob = SDEProblem(vector_field!, noise_term!,u0, tspan, params)
+        prob = ODEProblem(vector_field!, u0, tspan, params)
         sol = solve(prob, saveat=0.01)
         push!(solutions, sol)
     end
@@ -203,8 +236,8 @@ function plot_limit_cycle(cycle, name)
     Plots.savefig("$(name)_limit_cycle.png")
 end
 
-function make_hypersphere(r=0.5, d=4, n=10,o=nothing)
-    if o == nothing
+function make_hypersphere(r=0.5, d=4, n=10, o=nothing)
+    if o === nothing
         o = zeros(d)
     end
     if length(o) != d
@@ -225,26 +258,25 @@ end
 name = "heteroclinic_network"
 
 #mu = 1
-#a = 1.0
-#b = 0.55
-#c = 1.5
-#d = 0.1
+#a = 0
+#b = -1 + -.2 + 0.6 successor
+#c = -1.2 predecessor
 #sigma = 0.01
-params = (1.0, 1.0, 0.4, 1.4, 0.3, 0)
+params = (1.0, -1.0, -1.5, -0.6, 0)
 
 # Run the simulation and generate plots with more initial conditions
-initial_conditions = make_hypersphere(0.1, 4, 10, [0.5, 0.5, 0.5, 0.2])
-tspan = (0.0, 500.0)
+initial_conditions = make_hypersphere(0.1, 4, 20, [0.55, 0.55, 0.55, 0.55])
+tspan = (0.0, 200.0)
 solutions = run_simulation(name, initial_conditions, tspan, params)
 
 # Generate roots from a grid search
-grid_points = range(-1.0, stop=1.0, length=10)
-#roots = grid_search_roots(grid_points, params)
+grid_points = range(-.1, stop=1.0, length=10)
+roots = grid_search_roots(grid_points, params)
 #println("Unique roots found: $roots")
 
 # Find limit cycles
 limit_cycles = []
-limit_cycle_ics = [[-0.5290695,0.6016491, 0.8298353, 0]]
+limit_cycle_ics = []#[[-0.5290695,0.6016491, 0.8298353, 0]]
 for u0 in limit_cycle_ics
     cycle, _ = find_limit_cycle(vector_field!, u0, 30.0)
     if !isempty(cycle)
@@ -260,4 +292,4 @@ end
 
 # Plot phase portrait with trajectories and limit cycles
 dims = (4, 2, 3)  # Specify the dimensions to plot
-plot_phase_portrait([], solutions, [], name, params, dims)
+plot_phase_portrait(roots, solutions, [], name, params, dims)
