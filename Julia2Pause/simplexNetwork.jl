@@ -7,7 +7,6 @@ using LinearAlgebra  # Import norm function
 using PlotlyJS  # Import PlotlyJS for interactive plots
 include("./HelpersFunctions.jl")
 
-name = "excitable_network"
 
 function jacobian!(u, p)
     J = zeros(3, 3)
@@ -34,9 +33,9 @@ end
 
 function noise_term!(du, u, p, t)
     mu, a, b, c = p
-    du[1] = 0.05
-    du[2] = 0.05
-    du[3] = 0.05
+    du[1] = 0.2
+    du[2] = 0.2
+    du[3] = 0.2
 end
 
 function find_limit_cycle(f, x, t, tol=5e-4)
@@ -63,16 +62,29 @@ function plot_limit_cycle(cycle, name)
     Plots.savefig("$(name)_limit_cycle.png")
 end
 
+name = "excitable_network"
 # #mu = 1
 # #a = 1.0
 # #b = 0.55
 # #c = 1.5
-params = (1.0, 1.0, 1.1, 2)
-ds = DS(vector_field!, jacobian!, 3, params)
+params = (1.0, 1.0, 2, 2)
+ds = DS(3, vector_field!, jacobian!, noise_term!, x->x^2, params)
 
 # Run the simulation and generate plots with more initial conditions
-initial_conditions = make_hypersphere(0.1, 3, 10, [0.5, 0.5, 0.5])
+initial_conditions = make_hypersphere(0.1, 3, 1, [0.5, 0.5, 0.5])
 tspan = (0.0, 1000.0)
+plot_time_series(ds, initial_conditions, tspan, name)
+
+Plots.closeall()
+name = "heteroclinic_network"
+params = (1.0, 1.0, 0.6, 2)
+ds = DS(3, vector_field!, jacobian!, noise_term!, x->x^2, params)
+
+# Run the simulation and generate plots with more initial conditions
+initial_conditions = make_hypersphere(0.1, 3, 1, [0.5, 0.5, 0.5])
+tspan = (0.0, 1000.0)
+plot_time_series(ds, initial_conditions, tspan, name)
+exit()
 
 # Generate roots from a grid search
 roots = length(grid_search_roots(ds))

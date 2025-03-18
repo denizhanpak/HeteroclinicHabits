@@ -1,7 +1,9 @@
 struct DS
+    dimensions::Int
     vector_field::Function
     jacobian::Function
-    dimensions::Int
+    noise::Function
+    plot_transform::Function
     parameters::Tuple
 end
 
@@ -68,14 +70,33 @@ end
 
 function run_simulation(ds::DS, initial_conditions::Vector, tspan::Tuple=(0.0, 50.0))
     solutions = []
-    for u0 in initial_conditions
-        prob = ODEProblem(ds.vector_field, u0, tspan, ds.parameters)
-        sol = solve(prob, Tsit5(), saveat=0.01)
-        push!(solutions, sol)
+    if ds.noise === nothing
+        for u0 in initial_conditions
+            prob = ODEProblem(ds.vector_field, u0, tspan, ds.parameters)
+            sol = solve(prob, Tsit5(), saveat=0.01)
+            push!(solutions, sol)
+        end
+    else
+        for u0 in initial_conditions
+            prob = SDEProblem(ds.vector_field, ds.noise, u0, tspan, ds.parameters)
+            sol = solve(prob, saveat=0.01)
+            push!(solutions, sol)
+        end
     end
     return solutions
 end
 
+function plot_time_series(ds::DS, solution_ICs::Vector, tspan::Tuple=(0.0,50.0), name::String="time_series")
+    solutions = run_simulation(ds, solution_ICs, tspan)
+
+    for (i, sol) in enumerate(solutions)
+        time = sol.t
+        for j in 1:ds.dimensions
+            Plots.plot!(time, ds.plot_transform.(sol[j, :]), label="$i dim_$j", linewidth=0.1)
+        end
+    end
+    Plots.savefig("$(name)_time_series.png")
+end 
 
 function plot_phase_portrait(ds::DS, solution_ICs::Vector, root_range::Tuple=(0.1,1.1), mesh_size::Int=10, limit_cycle_ics::Vector=[], name::String="phase_portrait")
     #plot the roots
