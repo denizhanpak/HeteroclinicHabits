@@ -4,7 +4,7 @@ using Random
 using StatsBase
 using NLsolve  # Use NonlinearSolve instead of NLsolve
 using LinearAlgebra  # Import norm function
-using PlotlyJS  # Import PlotlyJS for interactive plots
+#using PlotlyJS  # Import PlotlyJS for interactive plots
 include("./HelpersFunctions.jl")
 
 
@@ -33,9 +33,10 @@ end
 
 function noise_term!(du, u, p, t)
     mu, a, b, c = p
-    du[1] = 0.2
-    du[2] = 0.2
-    du[3] = 0.2
+    n = 0.1
+    du[1] = n
+    du[2] = n
+    du[3] = n
 end
 
 function find_limit_cycle(f, x, t, tol=5e-4)
@@ -67,22 +68,21 @@ name = "excitable_network"
 # #a = 1.0
 # #b = 0.55
 # #c = 1.5
-params = (1.0, 1.0, 2, 2)
+params = (1.0, 1.0, 1.01, 2)
 ds = DS(3, vector_field!, jacobian!, noise_term!, x->x^2, params)
-
+t = 200.0
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = make_hypersphere(0.1, 3, 1, [0.5, 0.5, 0.5])
-tspan = (0.0, 1000.0)
+tspan = (0.0, t)
 plot_time_series(ds, initial_conditions, tspan, name)
 
-Plots.closeall()
 name = "heteroclinic_network"
 params = (1.0, 1.0, 0.6, 2)
 ds = DS(3, vector_field!, jacobian!, noise_term!, x->x^2, params)
 
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = make_hypersphere(0.1, 3, 1, [0.5, 0.5, 0.5])
-tspan = (0.0, 1000.0)
+tspan = (0.0, t)
 plot_time_series(ds, initial_conditions, tspan, name)
 exit()
 

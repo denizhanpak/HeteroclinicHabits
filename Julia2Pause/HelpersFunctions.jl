@@ -88,14 +88,15 @@ end
 
 function plot_time_series(ds::DS, solution_ICs::Vector, tspan::Tuple=(0.0,50.0), name::String="time_series")
     solutions = run_simulation(ds, solution_ICs, tspan)
-
+    plot = Plots.plot(title=name, xlabel="Time", ylabel="Value", zlabel="Dimension", seriestype=:scatter, markersize=2)
     for (i, sol) in enumerate(solutions)
         time = sol.t
         for j in 1:ds.dimensions
-            Plots.plot!(time, ds.plot_transform.(sol[j, :]), label="$i dim_$j", linewidth=0.1)
+            Plots.plot!(time, ds.plot_transform.(sol[j, :]), label="$i dim_$j", linewidth=0.4)
         end
     end
-    Plots.savefig("$(name)_time_series.png")
+    return plot
+    #Plots.savefig("$(name)_time_series.png")
 end 
 
 function plot_phase_portrait(ds::DS, solution_ICs::Vector, root_range::Tuple=(0.1,1.1), mesh_size::Int=10, limit_cycle_ics::Vector=[], name::String="phase_portrait")
@@ -143,9 +144,9 @@ function plot_phase_portrait(ds::DS, solution_ICs::Vector, root_range::Tuple=(0.
             zaxis=attr(title="Turn", range=[-0.1, 1.1])
         )
     )
-    plot = Plot([scatter_data; trajectories...], layout)
-    PlotlyJS.savefig(plot, "$(name)_phase_portrait.html")
-    display(plot)
+    return Plot([scatter_data; trajectories...], layout)
+    #PlotlyJS.savefig(plot, "$(name)_phase_portrait.html")
+    #display(plot)
 end
 
 
