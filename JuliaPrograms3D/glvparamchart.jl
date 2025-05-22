@@ -6,14 +6,48 @@ const BK = BifurcationKit
 function GLVvf(z, p)
 	(;α, β) = p
 	f, p, r = z
-    df = f * (1 - f * f - α * p^2 - β * r * r)
-    dp = p * (1 - p * p - α * r^2 - β * f * f)
-    dr = r * (1 - r * r - α * f^2 - β * p * p)
+    df = f * (1 - f - α * p - β * r)
+    dp = p * (1 - p - α * r - β * f)
+    dr = r * (1 - r - α * f - β * p)
 	return [df, dp, dr]
 end
 
+name = "heteroclinic_network"
+params = (1.0, 1.0, 0.6, 2)
+ds = DS(3, vector_field!, jacobian!, noise_term!, x->x^2, params)
+
+# Run the simulation and generate plots with more initial conditions
+initial_conditions = make_hypersphere(0.1, 3, 1, [0.5, 0.5, 0.5])
+tspan = (0.0, t)
+plot_time_series(ds, initial_conditions, tspan, name)
+exit()
+
+# Generate roots from a grid search
+roots = length(grid_search_roots(ds))
+println("Unique roots found: $roots")
+plot_phase_portrait(ds, initial_conditions)
+
+# # Find limit cycles
+# limit_cycles = []
+# limit_cycle_ics = [[-0.5290695,0.6016491, 0.8298353]]
+# for u0 in limit_cycle_ics
+#     cycle, _ = find_limit_cycle(vector_field!, u0, 30.0)
+#     if !isempty(cycle)
+#         push!(limit_cycles, cycle)
+#     end
+# end
+# #println("Limit cycles found: $limit_cycles")
+
+# # Plot limit cycle separately
+# if !isempty(limit_cycles)
+#     plot_limit_cycle(limit_cycles[1], name)
+# end
+
+# # Plot phase portrait with trajectories and limit cycles
+
+
 # parameter values
-par_tm = (α = .7, β = 0.7)
+par_tm = (α = .1, β = 0.1)
 
 # initial condition
 z0 = [0.99, 0.01, 0.01]
@@ -43,10 +77,7 @@ br_β = continuation(prob_β, PALC(), opts_br; normC = norminf)
 scene = plot(br_α, legend=:topleft)
 scene = plot(br_β, legend=:topleft)
 
-scene = plot(br_β, vars=(:α,:β), legend=:topleft, range=(0, 3))
-
 br_αβ = continuation(br_α, 1, (@optic _.β), opts_br; normC = norminf)
-
 br_βα = continuation(br_β, 1, (@optic _.α), opts_br; normC = norminf)
 
 # Hopf parameter chart
@@ -55,6 +86,7 @@ scene2 = plot(br_βα, vars=(:α,:β), legend=:topleft, range=(0, 3),
 plot!(br_αβ, vars=(:α,:β), legend=:topleft, color="blue")
 
 # Saddle bifurcation
+par_tm = (α = .1, β = 2.2)
 prob_α = BifurcationProblem(GLVvf, z0, par_tm, (@optic _.α);
 	record_from_solution = rec_glv,)
 
@@ -67,8 +99,8 @@ opts_br = ContinuationPar(p_min = 0.0, p_max = 3.0, ds = 0.001, dsmax = 0.008)
 # continuation of equilibria
 sn_α = continuation(prob_α, PALC(), opts_br; normC = norminf)
 sn_β = continuation(prob_β, PALC(), opts_br; normC = norminf)
-sn_αβ = continuation(br_α, 1, (@optic _.β), opts_br; normC = norminf)
-sn_βα = continuation(br_β, 1, (@optic _.α), opts_br; normC = norminf)
+sn_αβ = continuation(sn_α, 1, (@optic _.β), opts_br; normC = norminf)
+sn_βα = continuation(sn_β, 1, (@optic _.α), opts_br; normC = norminf)
 
 plot!(sn_αβ, vars=(:α,:β), legend=:topleft, color="red")
 plot!(sn_βα, vars=(:α,:β), legend=:topleft, color="red")

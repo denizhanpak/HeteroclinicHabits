@@ -32,13 +32,14 @@ function CTRNNvf2(du, u, p, t)
 end
 
 # parameter values
-par_tm = (we = .8, wi = .2)
+par_tm = (we = .5, wi = .2)
+#par_tm = (we = .01, wi = .01)
 
 # initial condition
 z0 = [0.99, 0.01, 0.01]
 z1 = [0.01, 0.99, 0.01]
 z2 = [0.01, 0.01, 0.99]
-z =  [1.5, 1.4, 1.5]
+z =  [-1.5, -1.4, -1.5]
 
 # Solve and plot for initial condition (0, 0, 0)
 z_init = [1.0, 2.0, 3.0]
@@ -67,39 +68,38 @@ diagram = bifurcationdiagram(prob_we, PALC(), 4, opts_br,)
 plot(diagram)
 
 # continuation of equilibria
-br_we = continuation(prob_we, PALC(), opts_br; normC = norminf)
+br_we = continuation(prob_we, PALC(), opts_br; normC = norminf, bothside=true)
 
-br_wi = continuation(prob_wi, PALC(), opts_br; normC = norminf)
+br_wi = continuation(prob_wi, PALC(), opts_br; bothside=true)
 
 scene = plot(br_we, legend=:topleft)
 scene = plot(br_wi, legend=:topleft)
 
-scene = plot(br_we, legend=:topleft, range=(0, 1))
+scene = plot(br_we, legend=:topleft)
 
-br_ei = continuation(br_we, 1, (@optic _.wi), opts_br; normC = norminf)
+br_ei = continuation(br_we, 2, (@optic _.wi), opts_br; normC = norminf, bothside=true)
 
-br_ie = continuation(br_wi, 1, (@optic _.we), opts_br; normC = norminf)
+br_ie = continuation(br_wi, 2, (@optic _.we), opts_br; normC = norminf, bothside=true)
 
 # Hopf parameter chart
-scene2 = plot(br_, vars=(:α,:β), legend=:topleft, range=(0, 3), 
-	title="Parameter chart of α and β", xlabel="α", ylabel="β", color="blue")
-plot!(br_αβ, vars=(:α,:β), legend=:topleft, color="blue")
+scene2 = plot(br_ei, vars=(:we,:wi), legend=:topleft, color="Blue", label="Hopf Bifurcation", aspect_ratio=1, ylims=(-0.1, 1.1), xlims=(-0.1, 1.1))
+plot!(br_ie, color="Blue")
 
 # Saddle bifurcation
-prob_α = BifurcationProblem(GLVvf, z0, par_tm, (@optic _.α);
-	record_from_solution = rec_glv,)
-
-prob_β = BifurcationProblem(GLVvf, z0, par_tm, (@optic _.β);
-	record_from_solution = rec_glv,)
+prob_e = BifurcationProblem(CTRNNvf, z0, par_tm, (@optic _.we);
+	record_from_solution = rec_ctrnn,)
+prob_i = BifurcationProblem(CTRNNvf, z0, par_tm, (@optic _.wi);
+	record_from_solution = rec_ctrnn,)
 
 # continuation options, we limit the parameter range for E0
-opts_br = ContinuationPar(p_min = 0.0, p_max = 3.0, ds = 0.001, dsmax = 0.008)
+par_tm = (we = .4, wi = .6)
+opts_br = ContinuationPar(p_min = 0.0, p_max = 1.0, ds = 0.0001, dsmax = 0.008)
 
 # continuation of equilibria
-sn_α = continuation(prob_α, PALC(), opts_br; normC = norminf)
-sn_β = continuation(prob_β, PALC(), opts_br; normC = norminf)
-sn_αβ = continuation(br_α, 1, (@optic _.β), opts_br; normC = norminf)
-sn_βα = continuation(br_β, 1, (@optic _.α), opts_br; normC = norminf)
+sn_e = continuation(prob_e, PALC(), opts_br; normC = norminf, bothside=true)
+sn_i = continuation(prob_i, PALC(), opts_br; normC = norminf, bothside=true)
+sn_ei = continuation(sn_e, 2, (@optic _.wi), opts_br; normC = norminf, bothside=true)
+sn_ie = continuation(sn_i, 2, (@optic _.we), opts_br; normC = norminf, bothside=true)
 
-plot!(sn_αβ, vars=(:α,:β), legend=:topleft, color="red")
-plot!(sn_βα, vars=(:α,:β), legend=:topleft, color="red")
+plot!(sn_ei, vars=(:we,:wi), legend=:topleft, color="red", label="Fold Bifurcation")
+plot!(sn_ie, vars=(:we,:wi), legend=:topleft, color="red")

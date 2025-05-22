@@ -1,3 +1,5 @@
+include("./DwellTime.jl")
+
 struct DS
     dimensions::Int
     vector_field::Function
@@ -95,7 +97,7 @@ function plot_time_series(ds::DS, solution_ICs::Vector, tspan::Tuple=(0.0,50.0),
             Plots.plot!(time, ds.plot_transform.(sol[j, :]), label="$i dim_$j", linewidth=0.4)
         end
     end
-    return plot
+    return plot, solutions
     #Plots.savefig("$(name)_time_series.png")
 end 
 
@@ -169,6 +171,12 @@ function make_hypersphere(r=0.5, d=3, n=10,o=nothing)
     return points
 end
 
+function solve_SDE(ic::Vector, ds::DS, tspan::Tuple=(0.0, 50.0))
+    prob = SDEProblem(ds.vector_field, ds.noise, ic, tspan, ds.parameters)
+    sol = solve(prob, saveat=0.01)
+    return sol
+end
+
 function solve_ODE(ic::Vector, ds::DS, tspan::Tuple=(0.0, 50.0))
     prob = ODEProblem(ds.vector_field, ic, tspan, ds.parameters)
     sol = solve(prob, Tsit5(), saveat=0.01)
@@ -199,4 +207,16 @@ function plot_saddles(point::Vector, ds::DS)
     return trajectories
 end
 
+function evaluate_dwell_times(ds::DS, sample_time::Tuple=(0,20000), ic_count::Int=10)
+    ics = make_hypersphere(0.1, ds.dimensions, ic_count, [0.53, 0.53, 0.53, 0.53])
+    solutions = run_simulation(ds, ics, sample_time)
+    bins = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+    dwell_times = []
+    for sol in solutions
+        adt = average_dwell_times(sol, bins)
+        rv=[adt[i] / minimum(values(adt)) for i in [1, 2, 3, 4]]
+        push!(dwell_times, rv)
+    end
 
+    return hcat(dwell_times...)
+end

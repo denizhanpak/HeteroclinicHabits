@@ -6,6 +6,7 @@ using NLsolve  # Use NonlinearSolve instead of NLsolve
 using LinearAlgebra  # Import norm function
 #using PlotlyJS  # Import PlotlyJS for interactive plots
 include("./HelpersFunctions.jl")
+include("./DwellTime.jl")
 
 
 function jacobian!(u, p)
@@ -26,14 +27,14 @@ end
 
 function vector_field!(du, u, p, t)
     mu, a, b, c = p
-    du[1] = mu * u[1] - u[1] * (a * u[1]^1 + b * u[2]^1 + c * u[3]^1)
-    du[2] = mu * u[2] - u[2] * (a * u[2]^1 + b * u[3]^1 + c * u[1]^1)
-    du[3] = mu * u[3] - u[3] * (a * u[3]^1 + b * u[1]^1 + c * u[2]^1)
+    du[1] = u[1] * (1 - a * u[1]^2 - b * u[2]^2 - c * u[3]^2)
+    du[2] = u[2] * (1 - a * u[2]^2 - b * u[3]^2 - c * u[1]^2)
+    du[3] = u[3] * (1 - a * u[3]^2 - b * u[1]^2 - c * u[2]^2)
 end
 
 function noise_term!(du, u, p, t)
     mu, a, b, c = p
-    n = 1e-8
+    n = 1e-6
     du[1] = n
     du[2] = n
     du[3] = n
@@ -68,8 +69,8 @@ name = "excitable_network"
 # #a = 1.0
 # #b = 0.55
 # #c = 1.5
-params = (1.0, 1.0, 1.01, 2)
-ds = DS(3, vector_field!, jacobian!, noise_term!, x->x, params)
+params = (1.0, 1.0, .7, 2)
+ds = DS(3, vector_field!, jacobian!, noise_term!, x->x^2, params)
 t = 500.0
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = make_hypersphere(0.1, 3, 1, [0.5, 0.5, 0.5])
