@@ -2,6 +2,7 @@ using Revise
 using Plots
 using BifurcationKit
 using DifferentialEquations
+using FFTW
 const BK = BifurcationKit
 
 function sigmoid(x)
@@ -43,11 +44,32 @@ z =  [-1.5, -1.4, -1.5]
 
 # Solve and plot for initial condition (0, 0, 0)
 z_init = [1.0, 2.0, 3.0]
-tspan = (0.0, 100.0)  # Define the time span
+tspan = (0.0, 1000.0)  # Define the time span
 prob2 = ODEProblem(CTRNNvf2, z0, tspan, par_tm)
-sol2 = solve(prob2, Tsit5())
+save_at = 0.001
+sol = solve(prob2, Tsit5(), abstol=1e-8, reltol=1e-8, saveat=save_at)
 
 plot(sol2, title="CTRNN Solution", xlabel="Time", ylabel="State Variables")
+
+start = 900000
+plot(sol.t[start:end], sol[1,start:end], title="CTRNN Solution", xlabel="Time", ylabel="State Variables")
+ts = sol[1,start:end]
+
+ft = fftshift(fft(ts))
+freqs =  fftshift(fftfreq(length(s), 1/save_at))
+
+# Plot
+time_domain = plot(t, signal, title="Signal", xlims=(0, 4 / 60), xlabel="time (s)", label="")
+freq_domain = plot(freqs, abs.(F), title="Spectrum", xlims=(0, 200), xlabel="frequency (Hz)", label="")
+plot(time_domain, freq_domain, layout = 2)
+savefig("Wave.pdf")
+
+rft = real.(ft)
+ift = imag.(ft)
+mag = (ift.^2 + rft.^2).^(1/2)
+phase = atan.(ift./rft)
+
+plot(mag, ylims=(0,200))
 
 # record the solution
 rec_ctrnn(x, p; k...) = (f = x[1], p = x[2], r = x[3])#, α = p[1], β = p[2])
@@ -101,5 +123,5 @@ sn_i = continuation(prob_i, PALC(), opts_br; normC = norminf, bothside=true)
 sn_ei = continuation(sn_e, 2, (@optic _.wi), opts_br; normC = norminf, bothside=true)
 sn_ie = continuation(sn_i, 2, (@optic _.we), opts_br; normC = norminf, bothside=true)
 
-plot!(sn_ei, vars=(:we,:wi), legend=:topleft, color="red", label="Fold Bifurcation")
-plot!(sn_ie, vars=(:we,:wi), legend=:topleft, color="red")
+plot!(sn_ei, vars=(:we,:wi), legend=:topleft, color="red", label="Fold Bifurcation", aspect_ratio=1, ylims=(-0.1, 1.1), xlims=(-0.1, 1.1))
+plot!(sn_ie, vars=(:we,:wi), legend=:topleft, color="red", label="Fold Bifurcation", aspect_ratio=1, ylims=(-0.1, 1.1), xlims=(-0.1, 1.1))

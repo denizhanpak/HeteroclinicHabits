@@ -43,7 +43,7 @@ function vector_field!(du, u, p, t)
 end
 
 function noise_term!(du, u, p, t)
-    n = 1e-9
+    n = 1e-15
     du[1] = n
     du[2] = n
     du[3] = n
@@ -55,12 +55,12 @@ name = "excitable_network"
 # #a = 1.0
 # #b = 0.55
 # #c = 1.5
-α = [1, 10.0, 25.] .* 1.
+α = [1., 0.5, 1.] .* 1.
 β = [1.0, 1.0, 1.0] .* 1.
-v = [1.5, 1.5, 1.5] .* 2.
+v = [1.5, 1.5, 1.5] .* 3.
 params = (parameter_matrix(α, β, v), α)
 ds = DS(3, vector_field!, jacobian!, noise_term!, x->x^2, params)
-t = 2000.0
+t = 100000.0
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = make_hypersphere(0.01, 3, 1, [0.53, 0.53, 0.53])
 initial_conditions = [[0.1,0.1,0.9]]

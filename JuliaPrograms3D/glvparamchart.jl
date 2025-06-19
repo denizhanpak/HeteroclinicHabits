@@ -83,10 +83,11 @@ br_βα = continuation(br_β, 1, (@optic _.α), opts_br; normC = norminf)
 # Hopf parameter chart
 scene2 = plot(br_βα, vars=(:α,:β), legend=:topleft, range=(0, 3), 
 	title="Parameter chart of α and β", xlabel="α", ylabel="β", color="blue")
-plot!(br_αβ, vars=(:α,:β), legend=:topleft, color="blue")
+plot!(br_αβ, vars=(:α,:β), legend=:topleft, color="blue", aspect_ratio=1, 
+	ylims=(0, 3), xlims=(0, 3), label="Hopf Bifurcation")
 
 # Saddle bifurcation
-par_tm = (α = .1, β = 2.2)
+par_tm = (α = .1, β = .1)
 prob_α = BifurcationProblem(GLVvf, z0, par_tm, (@optic _.α);
 	record_from_solution = rec_glv,)
 

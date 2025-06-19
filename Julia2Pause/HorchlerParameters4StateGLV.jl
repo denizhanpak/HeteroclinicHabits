@@ -76,6 +76,7 @@ end
 
 name = "excitable_network"
 α = [1/25, 1.3, 1/18, 1.3] .* 1.  # Add fourth state parameter
+α = [1/22, 1.6, 1/10, 1.4] .* 1.  # state for mock ctrnn data
 β = [1.0, 1.0, 1.0, 1.0] .* 1.  # Add fourth state parameter
 v = [3, 6, 1.5, 1.5] .* 2.  # Add fourth state parameter
 check_condition(α,v)  # Check condition for the new parameters

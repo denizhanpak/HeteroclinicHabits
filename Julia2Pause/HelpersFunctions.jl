@@ -94,7 +94,7 @@ function plot_time_series(ds::DS, solution_ICs::Vector, tspan::Tuple=(0.0,50.0),
     for (i, sol) in enumerate(solutions)
         time = sol.t
         for j in 1:ds.dimensions
-            Plots.plot!(time, ds.plot_transform.(sol[j, :]), label="$i dim_$j", linewidth=0.4)
+            Plots.plot!(time, ds.plot_transform.(sol[j, :]), label="$i dim_$j", linewidth=0.7)
         end
     end
     return plot, solutions

@@ -1,0 +1,5 @@
+Reach out to eduardo to use real data for bit about c elegans - move c elegans before methods
+
+Reformat mechanisms section to be 3 different phase portrait analyses
+
+Discussion not sections but flow summary thoughts futurework (including limitations)

@@ -47,15 +47,11 @@ function vector_field!(du, u, p, t)
     ρ = p[1]
     α = p[2]
     ρ = Transpose(ρ)
-    du[1] = u[1] * (α[1] - ρ[1,1] * u[1]^2 - ρ[2,1] * u[2]^2 - ρ[3,1] * u[3]^2 - ρ[4,1] * u[4]^2)
-    du[2] = u[2] * (α[2] - ρ[1,2] * u[1]^2 - ρ[2,2] * u[2]^2 - ρ[3,2] * u[3]^2 - ρ[4,2] * u[4]^2)
-    du[3] = u[3] * (α[3] - ρ[1,3] * u[1]^2 - ρ[2,3] * u[2]^2 - ρ[3,3] * u[3]^2 - ρ[4,3] * u[4]^2)
-    du[4] = u[4] * (α[4] - ρ[1,4] * u[1]^2 - ρ[2,4] * u[2]^2 - ρ[3,4] * u[3]^2 - ρ[4,4] * u[4]^2)
     
-    ws, wi, we, delta, epsilon = p
-    du[1] = -u[1] + ws * sigmoid(u[1], delta, epsilon) + wi * sigmoid(u[2], delta, epsilon) + we * sigmoid(u[3], delta, epsilon)
+    du[1] = -u[1] + ρ[1,1] * sigmoid(u[1], delta, epsilon) + wi * sigmoid(u[2], delta, epsilon) + we * sigmoid(u[4], delta, epsilon)
     du[2] = -u[2] + ws * sigmoid(u[2], delta, epsilon) + wi * sigmoid(u[3], delta, epsilon) + we * sigmoid(u[1], delta, epsilon)
-    du[3] = -u[3] + ws * sigmoid(u[3], delta, epsilon) + wi * sigmoid(u[1], delta, epsilon) + we * sigmoid(u[2], delta, epsilon)
+    du[3] = -u[3] + ws * sigmoid(u[3], delta, epsilon) + wi * sigmoid(u[4], delta, epsilon) + we * sigmoid(u[2], delta, epsilon)
+    du[4] = -u[3] + ws * sigmoid(u[4], delta, epsilon) + wi * sigmoid(u[1], delta, epsilon) + we * sigmoid(u[3], delta, epsilon)
 end
 
 function noise_term!(du, u, p, t)
@@ -80,7 +76,7 @@ function check_condition(a,v)
 end
 
 name = "excitable_network"
-α = [1/25, 1.3, 1/18, 1.3] .* 1.  # Add fourth state parameter
+α = [1/22, 1.6, 1/10, 1.4] .* 1.  # Add fourth state parameter
 β = [1.0, 1.0, 1.0, 1.0] .* 1.  # Add fourth state parameter
 v = [3, 6, 1.5, 1.5] .* 2.  # Add fourth state parameter
 check_condition(α,v)  # Check condition for the new parameters
