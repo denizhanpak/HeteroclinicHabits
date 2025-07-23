@@ -221,8 +221,88 @@ function evaluate_dwell_times(ds::DS, sample_time::Tuple=(0,20000), ic_count::In
     return hcat(dwell_times...)
 end
 
-function evaluate_sequence_generation(ds::DS; sample_time::Tuple=(500,2000))
-    f, p, r = sequence
+function evaluate_sequence_generation(ds::DS, sequence::Vector{Int}, sample_time::Tuple, initial_conditions::Vector; threshold::Real=0.98, O::Real=100.0, tmax::Real=1000.0, tmin::Real=0.0)
+    # Simulate the dynamical system
+    if ds.noise === nothing
+        prob = ODEProblem(ds.vector_field, initial_conditions, sample_time, ds.parameters)
+        sol = solve(prob, Tsit5(), saveat=0.01)
+    else
+        prob = SDEProblem(ds.vector_field, ds.noise, initial_conditions, sample_time, ds.parameters)
+        sol = solve(prob, saveat=0.01)
+    end
+    
+    # Find crossings for each dimension
+    all_crossings = Dict{Int, Tuple{Vector{Int}, Vector{Int}}}()
+    for dim in 1:ds.dimensions
+        dimension_data = [sol.u[i][dim] for i in 1:length(sol.u)]
+        up_crossings, down_crossings = find_crossings(dimension_data, threshold=threshold)
+        all_crossings[dim] = (up_crossings, down_crossings)
+    end
+    
+    # Check if the sequence is valid
+    if length(sequence) > ds.dimensions
+        throw(ArgumentError("Sequence length cannot exceed system dimensions"))
+    end
+    
+    # Validate the sequence occurs in order
+    sequence_valid = true
+    sequence_times = []
+    
+    for i in 1:length(sequence)
+        current_dim = sequence[i]
+        up_crossings, down_crossings = all_crossings[current_dim]
+        
+        if isempty(up_crossings)
+            sequence_valid = false
+            break
+        end
+        
+        # Find the first up crossing that occurs after the previous sequence element
+        valid_crossing_found = false
+        for up_time in up_crossings
+            # Check if this crossing occurs after the previous sequence element
+            if i == 1 || up_time > sequence_times[end][2] # After previous down crossing
+                # Find corresponding down crossing
+                down_candidates = filter(d -> d > up_time, down_crossings)
+                if !isempty(down_candidates)
+                    down_time = minimum(down_candidates)
+                    
+                    # If this is not the last element, check overlap with next dimension
+                    if i < length(sequence)
+                        next_dim = sequence[i+1]
+                        next_up_crossings, _ = all_crossings[next_dim]
+                        
+                        # Check if next dimension has an up crossing within overlap O of current down crossing
+                        overlap_valid = false
+                        for next_up in next_up_crossings
+                            if evaluate_crossings(up_time, down_time, next_up, tmax=tmax, tmin=tmin, O=O)
+                                overlap_valid = true
+                                break
+                            end
+                        end
+                        
+                        if overlap_valid
+                            push!(sequence_times, (up_time, down_time))
+                            valid_crossing_found = true
+                            break
+                        end
+                    else
+                        # Last element in sequence, no overlap check needed
+                        push!(sequence_times, (up_time, down_time))
+                        valid_crossing_found = true
+                        break
+                    end
+                end
+            end
+        end
+        
+        if !valid_crossing_found
+            sequence_valid = false
+            break
+        end
+    end
+    
+    return sequence_valid, sequence_times, all_crossings
 end
 
 function evaluate_crossings(ui::Int, di::Int, uj::Int; tmax::Real=1000.0, tmin::Real=0.0, O::Real=100.0)
@@ -249,4 +329,22 @@ function find_crossings(ts::Vector; threshold::Real=0.98)
         end
     end
     return (up_crossings, down_crossings)
+end
+
+function find_limit_cycle(ds::DS, x::Vector, t::Real, tol::Real=5e-4)
+    prob = ODEProblem(ds.vector_field, x, (0.0, t), ds.parameters)
+    sol = solve(prob, Tsit5(), saveat=0.01)
+    
+    # Find the index where the trajectory returns to the starting point
+    start_index = findfirst(i -> norm(sol[i] .- x) < tol, 20:length(sol))
+    
+    if start_index === nothing
+        return ([], 0.0)  # No limit cycle found
+    end
+    
+    # Extract the limit cycle and the time it took to complete
+    limit_cycle = sol[1:start_index]
+    cycle_time = sol.t[start_index]
+    
+    return (limit_cycle, cycle_time)
 end
