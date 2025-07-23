@@ -20,7 +20,7 @@ end
 #delta = 0.4
 #epsilon = delta / 8
 
-params = (1.0, -0.68, 0.23, 0.4, 0.05)
+params = (1.0, -0.75 * 11, -0.25 *11, 1, 0)
 
 function sigmoid(x, delta, epsilon)
     return 1 / (1 + exp(-(x - delta) / epsilon))
@@ -342,7 +342,6 @@ end
 
 line = plot_oscillator_channel([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], params)
 plot_oscillator_force_field(line, 0.001, 250)
-exit()
 
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = [[-0.5290695,0.6016491, 0.8298354],[-0.6454127, 0.979755, 0.2632572]]
@@ -374,4 +373,4 @@ end
 
 # Plot phase portrait with trajectories and limit cycles
 #plot_phase_portrait(roots, solutions, limit_cycles, name, params)
-p = plot_phase_portrait(roots, [], [], name, params)
+p = plot_phase_portrait(roots, [], limit_cycles, name, params)

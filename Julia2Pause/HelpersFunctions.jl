@@ -220,3 +220,33 @@ function evaluate_dwell_times(ds::DS, sample_time::Tuple=(0,20000), ic_count::In
 
     return hcat(dwell_times...)
 end
+
+function evaluate_sequence_generation(ds::DS; sample_time::Tuple=(500,2000))
+    f, p, r = sequence
+end
+
+function evaluate_crossings(ui::Int, di::Int, uj::Int; tmax::Real=1000.0, tmin::Real=0.0, O::Real=100.0)
+    t = di - ui
+    if t > tmax || t < tmin
+        return false
+    end
+    o = abs(uj - di)
+    if o < O && o > 0
+        return true
+    end
+    return false
+end
+
+function find_crossings(ts::Vector; threshold::Real=0.98)
+    up_crossings = []
+    down_crossings = []
+    for (index, step1) in enumerate(ts[1:end-1])
+        step2 = ts[index+1]
+        if step1 <= threshold && step2 > threshold
+            push!(up_crossings, index+1)
+        elseif step1 >= threshold && step2 < threshold
+            push!(down_crossings, index+1)
+        end
+    end
+    return (up_crossings, down_crossings)
+end

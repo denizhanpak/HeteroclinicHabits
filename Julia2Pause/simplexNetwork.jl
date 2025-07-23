@@ -33,7 +33,7 @@ end
 
 function noise_term!(du, u, p, t)
     mu, a, b, c = p
-    n = 1e-8
+    n = 0
     du[1] = n
     du[2] = n
     du[3] = n
@@ -68,13 +68,13 @@ name = "excitable_network"
 # #a = 1.0
 # #b = 0.55
 # #c = 1.5
-params = (1.0, 1.0, 1.01, 2)
+params = (1.0, 1.0, .7, 1.5)
 ds = DS(3, vector_field!, jacobian!, noise_term!, x->x, params)
-t = 500.0
+t = 300.0
 # Run the simulation and generate plots with more initial conditions
-initial_conditions = make_hypersphere(0.1, 3, 1, [0.5, 0.5, 0.5])
+initial_conditions = make_hypersphere(0.1, 3, 1, [0.1, 0.1, 0.9])
 tspan = (0.0, t)
-plot_time_series(ds, initial_conditions, tspan, name)
+plot_time_series(ds, initial_conditions, tspan, name)[1]
 
 name = "heteroclinic_network"
 params = (1.0, 1.0, 0.6, 2)
@@ -83,7 +83,7 @@ ds = DS(3, vector_field!, jacobian!, noise_term!, x->x^2, params)
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = make_hypersphere(0.1, 3, 1, [0.5, 0.5, 0.5])
 tspan = (0.0, t)
-plot_time_series(ds, initial_conditions, tspan, name)
+plot_time_series(ds, initial_conditions, tspan, name)[1]
 exit()
 
 # Generate roots from a grid search

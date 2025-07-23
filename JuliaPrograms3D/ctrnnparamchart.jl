@@ -33,7 +33,7 @@ function CTRNNvf2(du, u, p, t)
 end
 
 # parameter values
-par_tm = (we = .5, wi = .2)
+par_tm = (we = .5, wi = .3)
 #par_tm = (we = .01, wi = .01)
 
 # initial condition
@@ -44,12 +44,12 @@ z =  [-1.5, -1.4, -1.5]
 
 # Solve and plot for initial condition (0, 0, 0)
 z_init = [1.0, 2.0, 3.0]
-tspan = (0.0, 1000.0)  # Define the time span
+tspan = (0.0, 100.0)  # Define the time span
 prob2 = ODEProblem(CTRNNvf2, z0, tspan, par_tm)
 save_at = 0.001
 sol = solve(prob2, Tsit5(), abstol=1e-8, reltol=1e-8, saveat=save_at)
 
-plot(sol2, title="CTRNN Solution", xlabel="Time", ylabel="State Variables")
+plot(sol, title="CTRNN Solution", xlabel="Time", ylabel="State Variables")
 
 start = 900000
 plot(sol.t[start:end], sol[1,start:end], title="CTRNN Solution", xlabel="Time", ylabel="State Variables")

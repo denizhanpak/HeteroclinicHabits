@@ -47,7 +47,9 @@ function vector_field!(du, u, p, t)
     ρ = p[1]
     α = p[2]
     ρ = Transpose(ρ)
-    
+    delta = 0.
+    epsilon = 1.
+
     du[1] = -u[1] + ρ[1,1] * sigmoid(u[1], delta, epsilon) + wi * sigmoid(u[2], delta, epsilon) + we * sigmoid(u[4], delta, epsilon)
     du[2] = -u[2] + ws * sigmoid(u[2], delta, epsilon) + wi * sigmoid(u[3], delta, epsilon) + we * sigmoid(u[1], delta, epsilon)
     du[3] = -u[3] + ws * sigmoid(u[3], delta, epsilon) + wi * sigmoid(u[4], delta, epsilon) + we * sigmoid(u[2], delta, epsilon)
@@ -84,7 +86,7 @@ check_condition(α,v)  # Check condition for the new parameters
 
 params = (parameter_matrix(α, β, v), α)
 ds = DS(4, vector_field!, jacobian!, noise_term!, x->x^2, params)  # Update to 4 dimensions
-t = 10000.0
+t = 100.0
 # Run the simulation and generate plots with more initial conditions
 initial_conditions = make_hypersphere(0.01, 4, 1, [0.53, 0.53, 0.53, 0.53])  # Update to 4 dimensions
 initial_conditions = [[0.1, 0.1, 0.9, 0.1]]  # Update to 4 dimensions
